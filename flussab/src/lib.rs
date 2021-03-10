@@ -94,10 +94,12 @@
 
 #![warn(missing_docs)]
 mod byte_reader;
+mod byte_writer;
 mod parser;
 pub mod text;
 
 pub use byte_reader::ByteReader;
+pub use byte_writer::ByteWriter;
 pub use parser::{Parsed, Result, ResultExt};
 
 pub use Parsed::*;
