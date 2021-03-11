@@ -319,98 +319,14 @@ pub fn fixed(input: &mut ByteReader, offset: usize, fixed: &[u8]) -> usize {
     offset + fixed.len()
 }
 
-/// Stores (part of) the current line and a position within it.
-///
-/// This can be used to show some context when reporting parse errors.
-#[derive(Debug)]
-pub struct ErrorContext {
-    /// Bytes of the current line, excluding the final `"\n"` or `"\r\n"`.
-    pub line_content: Vec<u8>,
-    /// Set if `line_content` does not start at the start of the line.
-    pub start_truncatet: bool,
-    /// Set if `line_content` does not end at the end of the line.
-    pub end_truncatet: bool,
-    /// The position as an offset from the start of `line_content`.
-    pub position: usize,
-}
-
-impl fmt::Display for ErrorContext {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{start}{line}{end}\n{highlight_char:>highlight$}",
-            start = if self.start_truncatet { "..." } else { "" },
-            end = if self.end_truncatet { "..." } else { "" },
-            line = String::from_utf8_lossy(&self.line_content),
-            highlight = self.position + if self.start_truncatet { 4 } else { 1 },
-            highlight_char = '^'
-        )
-    }
-}
-
-impl ErrorContext {
-    /// Creates an error context at the current position, including up to `limit` bytes in both
-    /// direction to capture the current line.
-    ///
-    /// To capture the data in front of the current position, prepare `input` by calling
-    /// [`set_min_history_size`][ByteReader::set_min_history_size] with a value that is one byte
-    /// larger than `limit` before parsing any data.
-    ///
-    /// This will read up to `limit + 2` more bytes from `input` to find the end of the current
-    /// line.
-    pub fn new(input: &mut ByteReader, limit: usize) -> ErrorContext {
-        let mut line_content = vec![];
-
-        let mut history = input.history();
-
-        let mut start_truncatet = false;
-        let mut end_truncatet = false;
-
-        if history.len() > limit + 1 {
-            history = &history[history.len() - limit..];
-        }
-
-        if let Some(prefix_len) = history.iter().rev().position(|&byte| byte == b'\n') {
-            line_content.extend_from_slice(&history[history.len() - prefix_len..]);
-        } else {
-            line_content.extend_from_slice(&history[1..]);
-            start_truncatet = true;
-        }
-
-        let highlight = line_content.len();
-
-        let mut end_of_line = 0;
-
-        while end_of_line <= limit
-            && newline(input, end_of_line) == end_of_line
-            && input.request_byte_at_offset(end_of_line).is_some()
-        {
-            end_of_line += 1;
-        }
-        line_content.extend_from_slice(&input.buf()[..end_of_line]);
-
-        if end_of_line > limit {
-            line_content.pop();
-            end_truncatet = true;
-        }
-
-        ErrorContext {
-            line_content,
-            start_truncatet,
-            end_truncatet,
-            position: highlight,
-        }
-    }
-}
-
-/// A simple syntax error type for text based formats.
-#[derive(Debug)]
-pub struct SyntaxError {
-    /// The line on which the error occured.
+/// Source location consisting of a line and column number.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct LineColumn {
+    /// The source line.
     ///
     /// This follows the convention where the first line is line `1`.
     pub line: usize,
-    /// The (byte based) column on which the error occured.
+    /// The (byte based) source column.
     ///
     /// Note that for UTF-8 input this can differ from both the number of codepoints as well as the
     /// column when the output is displayed using a monospace font. Both these alternatives are used
@@ -419,21 +335,26 @@ pub struct SyntaxError {
     ///
     /// This follows the convention where the first column is column `1`.
     pub column: usize,
+}
+
+impl fmt::Display for LineColumn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+/// A simple syntax error type for text based formats.
+#[derive(Debug)]
+pub struct SyntaxError {
+    /// The source location of the error.
+    pub location: LineColumn,
     /// The error message.
     pub msg: String,
-    /// The content of the line and position within that line on which the error occured.
-    ///
-    /// For long lines this may not be the complete line, see [`ErrorContext`].
-    pub context: ErrorContext,
 }
 
 impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}: {}\n{}",
-            self.line, self.column, self.msg, self.context,
-        )
+        write!(f, "{}: {}", self.location, self.msg)
     }
 }
 
@@ -459,8 +380,7 @@ pub struct LineReader<'a> {
 impl<'a> LineReader<'a> {
     /// Creates a `LineReader` assuming line 1 starts at the current position of the passed
     /// [`ByteReader`].
-    pub fn new(mut reader: ByteReader<'a>) -> Self {
-        reader.set_min_history_size(101);
+    pub fn new(reader: ByteReader<'a>) -> Self {
         Self {
             line: 1,
             line_start: reader.position(),
@@ -493,26 +413,37 @@ impl<'a> LineReader<'a> {
     where
         E: From<io::Error> + From<SyntaxError>,
     {
-        self.give_up_cold(msg.into())
+        self.give_up_at_cold(self.reader.position(), msg.into())
+    }
+
+    /// Generate a syntax error at `position`.
+    ///
+    /// This assumes that `position` is on the current line, otherwise the resulting `LineColumn`
+    /// will be incorrect.
+    #[inline]
+    pub fn give_up_at<E>(&mut self, position: usize, msg: impl Into<String>) -> E
+    where
+        E: From<io::Error> + From<SyntaxError>,
+    {
+        self.give_up_at_cold(position, msg.into())
     }
 
     #[cold]
     #[inline(never)]
-    fn give_up_cold<E>(&mut self, msg: String) -> E
+    fn give_up_at_cold<E>(&mut self, position: usize, msg: String) -> E
     where
         E: From<io::Error> + From<SyntaxError>,
     {
-        let context = ErrorContext::new(&mut self.reader, 100);
-
         if let Err(err) = self.reader.check_io_error() {
             return err.into();
         }
 
         (SyntaxError {
-            line: self.line,
-            column: self.reader.position() - self.line_start + 1,
+            location: LineColumn {
+                line: self.line,
+                column: position - self.line_start + 1,
+            },
             msg,
-            context,
         })
         .into()
     }

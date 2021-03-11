@@ -4,8 +4,8 @@ use std::io::{self, BufReader, Cursor, Read};
 ///
 /// Like `std`'s [`BufReader`], this provides buffering to coalesce many small reads into fewer
 /// larger reads of the underlying data source. The difference is that `ByteReader` is optimized for
-/// efficient parsing. This includes asynchronous handling of IO errors, position tracking, dynamic
-/// and contiguous look-ahead, and optionally maintaining a fixed amount of already read data.
+/// efficient parsing. This includes asynchronous handling of IO errors, position tracking, and
+/// dynamic contiguous look-ahead.
 pub struct ByteReader<'a> {
     read: Box<dyn Read + 'a>,
     buf: Vec<u8>,
@@ -15,8 +15,8 @@ pub struct ByteReader<'a> {
     complete: bool,
     io_error: Option<io::Error>,
     pos_of_buf: usize,
+    mark_in_buf: usize,
     chunk_size: usize,
-    min_history_size: usize,
 }
 
 impl<'a> ByteReader<'a> {
@@ -57,8 +57,8 @@ impl<'a> ByteReader<'a> {
             complete: false,
             io_error: None,
             pos_of_buf: 0,
+            mark_in_buf: 0,
             chunk_size: Self::DEFAULT_CHUNK_SIZE,
-            min_history_size: 0,
         }
     }
 
@@ -70,15 +70,6 @@ impl<'a> ByteReader<'a> {
     /// requests than necessary.
     pub fn set_chunk_size(&mut self, size: usize) {
         self.chunk_size = size;
-    }
-
-    /// Sets the number of advanced over bytes that are guaranteed to be available via
-    /// [`history()`][Self::history].
-    ///
-    /// Increasing this value only applies to data already in the history buffer and cannot be used
-    /// to recover already purged data.
-    pub fn set_min_history_size(&mut self, size: usize) {
-        self.min_history_size = size;
     }
 
     /// Returns the currently buffered data in front of the cursor.
@@ -157,38 +148,38 @@ impl<'a> ByteReader<'a> {
         self.pos_in_buf += n;
     }
 
-    /// Returns a limited amount of data that was already advanced over.
-    ///
-    /// This is at most the amount of data read so far, and if possible at least the number of bytes
-    /// specified via `set_min_history_size`.
-    #[inline]
-    pub fn history(&self) -> &[u8] {
-        unsafe {
-            // SAFETY `..pos_in_buf` is always in bounds.
-            self.buf.get_unchecked(..self.pos_in_buf)
-        }
-    }
-
-    /// Returns both [`history`][Self::history] and [`buf`][Self::buf] as a single slice.
-    ///
-    /// It also returns the index at which the history ends and the buffered data starts.
-    #[inline]
-    pub fn history_and_buf(&self) -> (&[u8], usize) {
-        unsafe {
-            // SAFETY `..pos_in_buf + valid_len` is always in bounds.
-            (
-                self.buf.get_unchecked(..self.pos_in_buf + self.valid_len),
-                self.pos_in_buf,
-            )
-        }
-    }
-
     /// Total number of bytes the cursor was advanced so far.
     ///
     /// This wraps around every `usize::MAX` bytes.
     #[inline]
     pub fn position(&self) -> usize {
         self.pos_of_buf.wrapping_add(self.pos_in_buf)
+    }
+
+    /// Returns currently marked position.
+    ///
+    /// Initially this is position `0`, but can be changed using [`set_mark`][Self::set_mark] and
+    /// [`set_mark_to_position`][Self::set_mark_to_position].
+    ///
+    /// Setting the mark to the start of a token before advancing over it can be useful for error
+    /// reporting.
+    #[inline]
+    pub fn mark(&self) -> usize {
+        self.pos_of_buf.wrapping_add(self.mark_in_buf)
+    }
+
+    /// Marks the current position.
+    ///
+    /// Calling this will make [`mark`](Self::mark) return the current position.
+    #[inline]
+    pub fn set_mark(&mut self) {
+        self.mark_in_buf = self.pos_in_buf
+    }
+
+    /// Sets the position returned by [`mark`](Self::mark).
+    #[inline]
+    pub fn set_mark_to_position(&mut self, position: usize) {
+        self.mark_in_buf = position.wrapping_sub(self.pos_of_buf)
     }
 
     /// Returns whether all remaining data is buffered.
@@ -299,28 +290,21 @@ impl<'a> ByteReader<'a> {
             return false;
         }
 
-        // Only consider realigning if we have advanced over more data than we need to keep as
-        // history
-        if self.pos_in_buf > self.min_history_size {
-            // And only if we have advanced over sufficiently more data to
-            let realign = (self.pos_in_buf - self.min_history_size) > self.chunk_size * 2;
+        // Only realign if we have advanced over sufficiently more data to
+        let realign = self.pos_in_buf > self.chunk_size * 2;
 
-            if realign {
-                // We realign the data starting at `min_history_size` before our current position,
-                // resulting in a new current positin of `min_history_size`.
-                self.buf.copy_within(
-                    self.pos_in_buf - self.min_history_size..self.pos_in_buf + self.valid_len,
-                    0,
-                );
-                self.pos_of_buf = self.pos_of_buf.wrapping_add(self.pos_in_buf);
-                self.pos_in_buf = self.min_history_size;
+        if realign {
+            self.buf
+                .copy_within(self.pos_in_buf..self.pos_in_buf + self.valid_len, 0);
+            self.pos_of_buf = self.pos_of_buf.wrapping_add(self.pos_in_buf);
+            self.pos_in_buf = 0;
+            self.mark_in_buf = self.mark_in_buf.wrapping_sub(self.pos_in_buf);
 
-                // If our buffer is twice as large as it needs to be for the current data and an
-                // additional chunk, shrink it.
-                if self.buf.len() > 2 * (self.pos_in_buf + self.valid_len + self.chunk_size) {
-                    self.buf.truncate(self.buf.len() / 2);
-                    self.buf.shrink_to_fit();
-                }
+            // If our buffer is four times as large as it needs to be for the current data and an
+            // additional chunk, shrink it.
+            if self.buf.len() > 4 * (self.pos_in_buf + self.valid_len + self.chunk_size) {
+                self.buf.truncate(self.buf.len() / 2);
+                self.buf.shrink_to_fit();
             }
         }
 
