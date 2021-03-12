@@ -253,6 +253,11 @@ fn swar_ascii_digits_u64_le(word: u64) -> (u32, usize) {
     // This is 8 times the amount of matching digits
     let shift = matches.trailing_zeros() & !7;
 
+    if shift == 0 {
+        // Otherwise the shift of low_nibbles would overflow
+        return (0, 0);
+    }
+
     // Sum up pairs, groups of 4 and then groups of 8 digits
     let partial = (low_nibbles << (64 - shift)).wrapping_mul(2561) >> 8;
     let partial = (partial & 0x00ff00ff00ff00ff).wrapping_mul(6553601) >> 16;
