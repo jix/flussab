@@ -20,7 +20,7 @@ pub struct ByteReader<'a> {
 }
 
 impl<'a> ByteReader<'a> {
-    const DEFAULT_CHUNK_SIZE: usize = 4 << 10;
+    const DEFAULT_CHUNK_SIZE: usize = 16 << 10;
 
     /// Creates a [`ByteReader`] for the data of a [`BufReader`].
     pub fn from_buf_reader(buf_reader: BufReader<impl Read + 'a>) -> Self {

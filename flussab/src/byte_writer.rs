@@ -17,7 +17,7 @@ pub struct ByteWriter<'a> {
 }
 
 impl<'a> ByteWriter<'a> {
-    const DEFAULT_CHUNK_SIZE: usize = 4 << 10;
+    const DEFAULT_CHUNK_SIZE: usize = 16 << 10;
 
     /// Creates a [`ByteWriter`] writing data to a [`Write`] instance.
     pub fn from_write(write: impl Write + 'a) -> Self {
