@@ -3,8 +3,12 @@ name = "flussab"
 version = "0.1.0"
 authors = ["Jannis Harder <me@jix.one>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Utilities for writing parsers"
+repository = "https://github.com/jix/flussab"
+license = "0BSD"
+readme = "README.md"
+keywords = ["parser", "streaming", "recursive-descent", "text", "binary"]
+categories = ["parsing"]
 
 [dependencies]
 num-traits = "0.2.14"
