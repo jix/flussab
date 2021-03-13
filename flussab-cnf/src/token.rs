@@ -4,6 +4,10 @@ use flussab::{
     text::{self, LineReader},
     Parsed,
 };
+use num_traits::{
+    ops::overflowing::{OverflowingAdd, OverflowingMul, OverflowingSub},
+    Bounded, FromPrimitive, Zero,
+};
 use Parsed::{Fallthrough, Res};
 
 use crate::{error::ParseError, Dimacs};
@@ -32,7 +36,10 @@ pub fn word(input: &mut LineReader, fixed: &[u8]) -> Parsed<(), ParseError> {
 
 /// Parses a non-negative integer.
 #[inline]
-pub fn usize(input: &mut LineReader) -> Parsed<usize, String> {
+pub fn uint<T>(input: &mut LineReader) -> Parsed<T, String>
+where
+    T: Zero + FromPrimitive + OverflowingAdd + OverflowingMul,
+{
     let (value, offset) = text::ascii_digits_multi(input.reader(), 0);
     if offset != 0 && is_end_of_word(input, offset) {
         if let Some(value) = value {
@@ -51,7 +58,10 @@ pub fn usize(input: &mut LineReader) -> Parsed<usize, String> {
 
 /// Parses an integer.
 #[inline]
-pub fn isize(input: &mut LineReader) -> Parsed<isize, String> {
+pub fn int<T>(input: &mut LineReader) -> Parsed<T, String>
+where
+    T: Zero + FromPrimitive + OverflowingAdd + OverflowingSub + OverflowingMul,
+{
     let (value, offset) = text::signed_ascii_digits_multi(input.reader(), 0);
     if offset != 0 && is_end_of_word(input, offset) {
         if let Some(value) = value {
@@ -176,7 +186,7 @@ pub fn exceeds_var_count(
 #[inline]
 pub fn var_count<L: Dimacs>(input: &mut LineReader) -> Parsed<usize, ParseError> {
     input.reader.set_mark();
-    usize(input)
+    uint(input)
         .map_err(|count| exceeds_var_count(input, "variable count", count, L::MAX_DIMACS, true))
         .and_also(|&mut count| {
             if count > L::MAX_DIMACS as usize {
@@ -194,16 +204,28 @@ pub fn var_count<L: Dimacs>(input: &mut LineReader) -> Parsed<usize, ParseError>
 }
 
 #[inline]
-pub fn usize_count(input: &mut LineReader, what: &str) -> Parsed<usize, ParseError> {
+pub fn uint_count<T>(input: &mut LineReader, what: &str) -> Parsed<T, ParseError>
+where
+    T: Zero + FromPrimitive + OverflowingAdd + OverflowingMul + Bounded + Display,
+{
     input.reader.set_mark();
-    usize(input).map_err(|count| {
+    uint(input).map_err(|count| {
         input.give_up(format!(
             "{} {} exceeds the exceeds the supported maximum of {}",
             what,
             count,
-            usize::MAX,
+            T::max_value(),
         ))
     })
+}
+
+#[inline]
+pub fn non_terminating_linebreaks(input: &mut LineReader) -> Result<bool, ParseError> {
+    let linebreak = newline(input).matches()?;
+    if linebreak {
+        while comment(input).or_parse(|| newline(input)).matches()? {}
+    }
+    Ok(linebreak)
 }
 
 #[inline]
@@ -214,7 +236,7 @@ pub fn clause_lits<L: Dimacs>(
     hard_limit: bool,
 ) -> Parsed<(), ParseError> {
     input.reader.set_mark();
-    isize(input)
+    int(input)
         .map_err(|lit| exceeds_var_count(input, "literal", lit, limit, hard_limit))
         .and_then(|mut lit| {
             lits.clear();
@@ -226,16 +248,14 @@ pub fn clause_lits<L: Dimacs>(
                 }
 
                 input.reader.set_mark();
-                if let Some(next_lit) = isize(input)
+                if let Some(next_lit) = int(input)
                     .map_err(|lit| exceeds_var_count(input, "literal", lit, limit, hard_limit))
                     .optional()?
                 {
                     lit = next_lit;
-                } else if newline(input).matches()? {
-                    while comment(input).or_parse(|| newline(input)).matches()? {}
-
+                } else if non_terminating_linebreaks(input)? {
                     input.reader.set_mark();
-                    lit = isize(input)
+                    lit = int(input)
                         .map_err(|lit| exceeds_var_count(input, "literal", lit, limit, hard_limit))
                         .or_give_up(|| unexpected(input, "literal, terminating zero or comment"))?;
                 } else {

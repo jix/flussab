@@ -1,6 +1,6 @@
 [package]
 name = "flussab-cnf"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Jannis Harder <me@jix.one>"]
 edition = "2018"
 description = "DIMACS CNF file format parser and writer"
@@ -14,3 +14,4 @@ categories = ["parser-implementations", "encoding"]
 itoa = "0.4.7"
 flussab = { version = "0.1.0", path = "../flussab" }
 thiserror = "1.0.24"
+num-traits = "0.2.14"

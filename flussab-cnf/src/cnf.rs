@@ -122,7 +122,7 @@ where
                 let var_count = token::var_count::<L>(reader)
                     .or_give_up(|| token::unexpected(reader, "variable count"))?;
 
-                let clause_count = token::usize_count(reader, "clause count")
+                let clause_count = token::uint_count(reader, "clause count")
                     .or_give_up(|| token::unexpected(reader, "clause count"))?;
 
                 token::interactive_end_of_line(reader)
