@@ -39,7 +39,7 @@ for inclusion in this software by you shall be licensed as defined in
 
 [github]:https://github.com/jix/flussab
 [crate]:https://crates.io/crates/flussab-cnf
-[docs]:https://docs.rs/flussab-cnf/*/flussab-cnf
+[docs]:https://docs.rs/flussab-cnf/*/flussab_cnf
 
 [github-badge]: https://img.shields.io/badge/github-jix/flussab-blueviolet?style=flat-square
 [crate-badge]: https://img.shields.io/crates/v/flussab-cnf?style=flat-square
