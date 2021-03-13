@@ -47,8 +47,8 @@ where
 {
     /// Creates a parser reading from a [`BufReader`].
     ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
+    /// When `strict` is false, the variable and clause count of the header are ignored during
+    /// parsing.
     pub fn from_buf_reader(
         buf_reader: BufReader<impl Read + 'a>,
         strict: bool,
@@ -65,8 +65,8 @@ where
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
     ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
+    /// When `strict` is false, the variable and clause count of the header are ignored during
+    /// parsing.
     pub fn from_read(read: impl Read + 'a, strict: bool) -> Result<Self, ParseError> {
         Self::new(LineReader::new(ByteReader::from_read(read)), strict)
     }
@@ -77,8 +77,8 @@ where
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
     ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
+    /// When `strict` is false, the variable and clause count of the header are ignored during
+    /// parsing.
     #[inline(never)]
     pub fn from_boxed_dyn_read(read: Box<dyn Read + 'a>, strict: bool) -> Result<Self, ParseError> {
         Self::new(
