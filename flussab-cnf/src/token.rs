@@ -211,7 +211,7 @@ where
     input.reader.set_mark();
     uint(input).map_err(|count| {
         input.give_up(format!(
-            "{} {} exceeds the exceeds the supported maximum of {}",
+            "{} {} exceeds the supported maximum of {}",
             what,
             count,
             T::max_value(),
