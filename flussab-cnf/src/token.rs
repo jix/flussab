@@ -78,6 +78,33 @@ where
     }
 }
 
+/// Parses a non-negative integer enclosed in braces.
+#[inline]
+pub fn braced_uint<T>(input: &mut LineReader) -> Parsed<T, String>
+where
+    T: Zero + FromPrimitive + OverflowingAdd + OverflowingMul,
+{
+    if !matches!(input.reader.request_byte(), Some(b'{')) {
+        return Fallthrough;
+    }
+
+    let (value, mut offset) = text::ascii_digits_multi(input.reader(), 1);
+    if offset != 1 && matches!(input.reader.request_byte_at_offset(offset), Some(b'}')) {
+        offset += 1;
+        if let Some(value) = value {
+            let offset = text::tabs_or_spaces(input.reader(), offset);
+            input.reader.advance(offset);
+            Res(Ok(value))
+        } else {
+            Res(Err(std::str::from_utf8(&input.reader.buf()[..offset])
+                .unwrap()
+                .to_owned()))
+        }
+    } else {
+        Fallthrough
+    }
+}
+
 #[inline]
 pub fn comment(input: &mut LineReader) -> Parsed<(), ParseError> {
     if let Some(b'c') = input.reader.request_byte() {
@@ -217,6 +244,38 @@ where
             T::max_value(),
         ))
     })
+}
+
+#[inline]
+pub fn clause_group(
+    input: &mut LineReader,
+    limit: usize,
+    hard_limit: bool,
+) -> Parsed<usize, ParseError> {
+    input.reader.set_mark();
+    braced_uint(input)
+        .map_err(|count| {
+            input.give_up(format!(
+                "group {} exceeds the {} maximum of {}",
+                count,
+                if hard_limit { "supported" } else { "specified" },
+                limit,
+            ))
+        })
+        .and_also(|&mut group| {
+            if group > limit {
+                return Err(input.give_up_at(
+                    input.reader.mark(),
+                    format!(
+                        "group {} exceeds the {} maximum of {}",
+                        group,
+                        if hard_limit { "supported" } else { "specified" },
+                        limit,
+                    ),
+                ));
+            }
+            Ok(())
+        })
 }
 
 #[inline]

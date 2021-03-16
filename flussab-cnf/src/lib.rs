@@ -4,10 +4,12 @@
 //! In the future it will also contain parser for other closely related file formats.
 
 #![warn(missing_docs)]
-pub mod cnf;
 mod dimacs_trait;
 mod error;
 mod token;
+
+pub mod cnf;
+pub mod gcnf;
 pub mod wcnf;
 
 pub use dimacs_trait::Dimacs;

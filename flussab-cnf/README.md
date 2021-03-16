@@ -8,7 +8,7 @@ Parsing and writing of the [DIMACS CNF file format][dimacs-cnf], implemented
 using [`flussab`][flussab]. The goal of this library is to provide a very
 efficient streaming parser for the DIMACS CNF file format while being easy to
 extend to the numerous variants, extensions and related file formats. Currently
-plain CNF and WCNF are supported.
+plain CNF, WCNF and GCNF are supported.
 
 ## Performance
 
