@@ -19,7 +19,7 @@ pub struct Header {
     pub var_count: usize,
     /// Number of clauses present in the formula.
     ///
-    /// Ignored during parsign when `0`.
+    /// Ignored during parsing when `0`.
     pub clause_count: usize,
 
     /// The weight used to indicate hard clauses.
@@ -29,7 +29,7 @@ pub struct Header {
     pub top_weight: u64,
 }
 
-/// Parser for the DIMACS CNF file format.
+/// Parser for the WCNF file format.
 pub struct Parser<'a, L> {
     reader: LineReader<'a>,
     clause_count: usize,
@@ -149,7 +149,7 @@ where
             .optional()
     }
 
-    /// Returns the DIMACS CNF header if it was present.
+    /// Returns the WCNF header if it was present.
     pub fn header(&self) -> Option<Header> {
         self.header
     }

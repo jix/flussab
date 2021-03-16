@@ -17,7 +17,7 @@ pub struct Header {
     pub var_count: usize,
     /// Number of clauses present in the formula.
     ///
-    /// Ignored during parsign when `0`.
+    /// Ignored during parsing when `0`.
     pub clause_count: usize,
 }
 
