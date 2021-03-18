@@ -14,7 +14,7 @@ fn main_err() -> Result<(), ParseError> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
 
-    let mut cnf_reader = cnf::Parser::<i32>::from_read(stdin.lock(), false)?;
+    let mut cnf_reader = cnf::Parser::<i32>::from_read(stdin.lock(), true)?;
     let mut cnf_writer = ByteWriter::from_write(stdout.lock());
 
     if let Some(header) = cnf_reader.header() {
