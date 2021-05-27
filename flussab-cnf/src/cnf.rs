@@ -580,4 +580,13 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn percent_eof() -> Result<()> {
+        let mut parser = Parser::<i32>::from_read("p cnf 2 1\n-1 2 0\n%\n0\n".as_bytes(), true)?;
+
+        assert_eq!(parser.next_clause()?, Some(&[-1, 2][..]));
+        assert_eq!(parser.next_clause()?, None);
+        Ok(())
+    }
 }

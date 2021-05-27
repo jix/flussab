@@ -147,6 +147,10 @@ pub fn interactive_newline(input: &mut LineReader) -> Parsed<(), ParseError> {
 
 #[inline]
 pub fn eof(input: &mut LineReader) -> Parsed<(), ParseError> {
+    if let Some(b'%') = input.reader.request_byte() {
+        return Res(Ok(()));
+    }
+
     if input.reader.request_byte().is_none() && input.reader.io_error().is_none() {
         Res(Ok(()))
     } else {
