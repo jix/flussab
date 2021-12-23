@@ -2,7 +2,7 @@
 name = "flussab-cnf"
 version = "0.2.0"
 authors = ["Jannis Harder <me@jix.one>"]
-edition = "2018"
+edition = "2021"
 description = "DIMACS CNF file format parser and writer"
 repository = "https://github.com/jix/flussab"
 license = "0BSD"
