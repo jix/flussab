@@ -97,6 +97,7 @@ mod deferred_reader;
 mod deferred_writer;
 mod parser;
 pub mod text;
+pub mod write;
 
 pub use deferred_reader::DeferredReader;
 pub use deferred_writer::DeferredWriter;

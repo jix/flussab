@@ -106,6 +106,44 @@ impl<'a> DeferredWriter<'a> {
         }
     }
 
+    /// Returns a pointer to the current write pointer within the internal buffer if sufficient
+    /// space is available.
+    ///
+    /// If only fewer than `len` bytes are available, this returns a null pointer.
+    ///
+    /// Can be used in conjunction with [`advance_unchecked`][Self::advance_unchecked] to construct
+    /// output data directly within the output buffer, potentially avoiding a redundant copy.
+    #[inline]
+    pub fn buf_write_ptr(&mut self, len: usize) -> *mut u8 {
+        let old_len = self.buf.len();
+        // SAFETY add cannot overflow as both are at most `isize::MAX`.
+        let new_len = old_len + len;
+        if new_len <= self.buf.capacity() {
+            // SAFETY this returns the offset to `old_len` which is always in range
+            unsafe { self.buf.as_mut_ptr().add(old_len) }
+        } else {
+            std::ptr::null_mut()
+        }
+    }
+
+    /// Advances the write pointer within the internal buffer.
+    ///
+    /// # Safety
+    ///
+    /// This assumes that a) there is sufficient space left in the buffer and b) that the bytes the
+    /// pointer is advanced over were initialized prior to calling this (via
+    /// [`buf_write_ptr`](Self::buf_write_ptr)).
+    ///
+    /// If either assumption does not hold calling this results in undefined behavior.
+    #[inline]
+    pub unsafe fn advance_unchecked(&mut self, len: usize) {
+        let old_len = self.buf.len();
+        // SAFETY add cannot overflow as both are at most `isize::MAX`.
+        let new_len = old_len + len;
+        debug_assert!(new_len <= self.buf.capacity());
+        self.buf.set_len(new_len)
+    }
+
     /// Returns an encountered IO errors as `Err(io_err)`.
     ///
     /// This resets the stored IO error and returns `Ok(())` if no IO error is stored.

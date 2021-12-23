@@ -1,9 +1,9 @@
 //! Parsing and writing of the WCNF file format for weighted CNF formulas.
 //!
 //! Also known as WDIMACS.
-use std::io::{self, BufReader, Read, Write};
+use std::io::{BufReader, Read, Write};
 
-use flussab::{text::LineReader, DeferredReader, DeferredWriter};
+use flussab::{text::LineReader, write, DeferredReader, DeferredWriter};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -243,10 +243,10 @@ pub fn write_header(writer: &mut DeferredWriter, header: Header) {
 
 /// Writes a weighted clause.
 pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, weight: u64, clause_lits: &[L]) {
-    let _ = itoa::write(&mut *writer, weight);
+    write::text::ascii_digits(writer, weight);
     for lit in clause_lits {
         writer.write_all_defer_err(b" ");
-        let _ = itoa::write(&mut *writer, lit.dimacs());
+        write::text::ascii_digits(writer, lit.dimacs());
     }
     writer.write_all_defer_err(b" 0\n");
 }

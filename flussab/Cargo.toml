@@ -11,4 +11,5 @@ keywords = ["parser", "streaming", "recursive-descent", "text", "binary"]
 categories = ["parsing"]
 
 [dependencies]
+itoap = "1.0.1"
 num-traits = "0.2.14"

@@ -1,7 +1,7 @@
 //! Parsing and writing of the GCNF file format for group oriented CNF formulas.
-use std::io::{self, BufReader, Read, Write};
+use std::io::{BufReader, Read, Write};
 
-use flussab::{text::LineReader, DeferredReader, DeferredWriter};
+use flussab::{text::LineReader, write, DeferredReader, DeferredWriter};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -252,10 +252,10 @@ pub fn write_header(writer: &mut DeferredWriter, header: Header) {
 /// Writes a clause belonging to a group.
 pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, group: usize, clause_lits: &[L]) {
     writer.write_all_defer_err(b"{");
-    let _ = itoa::write(&mut *writer, group);
+    write::text::ascii_digits(writer, group);
     writer.write_all_defer_err(b"} ");
     for lit in clause_lits {
-        let _ = itoa::write(&mut *writer, lit.dimacs());
+        write::text::ascii_digits(writer, lit.dimacs());
         writer.write_all_defer_err(b" ");
     }
     writer.write_all_defer_err(b"0\n");
