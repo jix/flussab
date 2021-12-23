@@ -98,7 +98,7 @@ impl<'a> ByteWriter<'a> {
             // Silently discard data if we errored before but haven't reported it yet
             if self.io_error.is_none() {
                 self.panicked = true;
-                if let Err(err) = self.write.write_all(&buf) {
+                if let Err(err) = self.write.write_all(buf) {
                     self.io_error = Some(err);
                 }
                 self.panicked = false;
