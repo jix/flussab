@@ -552,21 +552,22 @@ mod tests {
 
     #[test]
     fn roundtrip() -> Result<()> {
-        let input = concat!(
-            "p cnf 5 12\n",
-            "-1 -2 0\n",
-            "-1 -3 0\n",
-            "-1 -4 0\n",
-            "-1 -5 0\n",
-            "-2 -3 0\n",
-            "-2 -4 0\n",
-            "-2 -5 0\n",
-            "-3 -4 0\n",
-            "-3 -5 0\n",
-            "-4 -5 0\n",
-            "2 5 3 4 1 0\n",
-            "4 2 3 1 5 0\n"
-        );
+        let input = &r"
+p cnf 5 12
+-1 -2 0
+-1 -3 0
+-1 -4 0
+-1 -5 0
+-2 -3 0
+-2 -4 0
+-2 -5 0
+-3 -4 0
+-3 -5 0
+-4 -5 0
+2 5 3 4 1 0
+4 2 3 1 5 0
+"[1..];
+
         let mut output = vec![];
         let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
 

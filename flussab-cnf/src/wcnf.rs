@@ -250,3 +250,48 @@ pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, weight: u64, clause_
     }
     writer.write_all_defer_err(b" 0\n");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type Result<T> = std::result::Result<T, ParseError>;
+
+    #[test]
+    fn roundtrip() -> Result<()> {
+        let input = &r"
+p wcnf 5 12 67
+1 -1 -2 0
+2 -1 -3 0
+3 -1 -4 0
+4 -1 -5 0
+5 -2 -3 0
+6 -2 -4 0
+7 -2 -5 0
+8 -3 -4 0
+9 -3 -5 0
+10 -4 -5 0
+11 2 5 3 4 1 0
+67 4 2 3 1 5 0
+"[1..];
+
+        let mut output = vec![];
+        let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
+
+        {
+            let mut writer = DeferredWriter::from_write(&mut output);
+
+            write_header(&mut writer, parser.header().unwrap());
+
+            while let Some((weight, clause)) = parser.next_clause()? {
+                write_clause(&mut writer, weight, clause);
+            }
+
+            writer.flush()?;
+        }
+
+        assert_eq!(input.as_bytes(), output);
+
+        Ok(())
+    }
+}
