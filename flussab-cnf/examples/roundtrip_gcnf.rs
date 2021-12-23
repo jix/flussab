@@ -18,11 +18,11 @@ fn main_err() -> Result<(), ParseError> {
     let mut gcnf_writer = DeferredWriter::from_write(stdout.lock());
 
     if let Some(header) = gcnf_reader.header() {
-        gcnf::write_header(&mut gcnf_writer, header)?;
+        gcnf::write_header(&mut gcnf_writer, header);
     }
 
     while let Some((group, lits)) = gcnf_reader.next_clause()? {
-        gcnf::write_clause(&mut gcnf_writer, group, lits)?;
+        gcnf::write_clause(&mut gcnf_writer, group, lits);
     }
 
     gcnf_writer.flush()?;

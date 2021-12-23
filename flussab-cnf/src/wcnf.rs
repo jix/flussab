@@ -3,7 +3,7 @@
 //! Also known as WDIMACS.
 use std::io::{self, BufReader, Read, Write};
 
-use flussab::{text::LineReader, DeferredReader};
+use flussab::{text::LineReader, DeferredReader, DeferredWriter};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -233,24 +233,20 @@ where
 }
 
 /// Writes a WCNF header.
-pub fn write_header(writer: &mut impl Write, header: Header) -> io::Result<()> {
-    writeln!(
+pub fn write_header(writer: &mut DeferredWriter, header: Header) {
+    let _ = writeln!(
         writer,
         "p wcnf {} {} {}",
         header.var_count, header.clause_count, header.top_weight
-    )
+    );
 }
 
 /// Writes a weighted clause.
-pub fn write_clause<L: Dimacs>(
-    writer: &mut impl Write,
-    weight: u64,
-    clause_lits: &[L],
-) -> io::Result<()> {
-    itoa::write(&mut *writer, weight)?;
+pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, weight: u64, clause_lits: &[L]) {
+    let _ = itoa::write(&mut *writer, weight);
     for lit in clause_lits {
-        writer.write_all(b" ")?;
-        itoa::write(&mut *writer, lit.dimacs())?;
+        writer.write_all_defer_err(b" ");
+        let _ = itoa::write(&mut *writer, lit.dimacs());
     }
-    writer.write_all(b" 0\n")
+    writer.write_all_defer_err(b" 0\n");
 }

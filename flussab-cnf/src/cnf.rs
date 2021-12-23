@@ -1,7 +1,7 @@
 //! Parsing and writing of the DIMACS CNF file format.
 use std::io::{self, BufReader, Read, Write};
 
-use flussab::{text::LineReader, DeferredReader};
+use flussab::{text::LineReader, DeferredReader, DeferredWriter};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -212,17 +212,17 @@ where
 }
 
 /// Writes a DIMACS CNF header.
-pub fn write_header(writer: &mut impl Write, header: Header) -> io::Result<()> {
-    writeln!(writer, "p cnf {} {}", header.var_count, header.clause_count)
+pub fn write_header(writer: &mut DeferredWriter, header: Header) {
+    let _ = writeln!(writer, "p cnf {} {}", header.var_count, header.clause_count);
 }
 
 /// Writes a clause.
-pub fn write_clause<L: Dimacs>(writer: &mut impl Write, clause_lits: &[L]) -> io::Result<()> {
+pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, clause_lits: &[L]) {
     for lit in clause_lits {
-        itoa::write(&mut *writer, lit.dimacs())?;
-        writer.write_all(b" ")?;
+        let _ = itoa::write(&mut *writer, lit.dimacs());
+        writer.write_all_defer_err(b" ");
     }
-    writer.write_all(b"0\n")
+    writer.write_all_defer_err(b"0\n")
 }
 
 #[cfg(test)]
@@ -570,10 +570,16 @@ mod tests {
         let mut output = vec![];
         let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
 
-        write_header(&mut output, parser.header().unwrap())?;
+        {
+            let mut writer = DeferredWriter::from_write(&mut output);
 
-        while let Some(clause) = parser.next_clause()? {
-            write_clause(&mut output, clause)?;
+            write_header(&mut writer, parser.header().unwrap());
+
+            while let Some(clause) = parser.next_clause()? {
+                write_clause(&mut writer, clause);
+            }
+
+            writer.flush()?;
         }
 
         assert_eq!(input.as_bytes(), output);

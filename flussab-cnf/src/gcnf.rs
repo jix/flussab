@@ -1,7 +1,7 @@
 //! Parsing and writing of the GCNF file format for group oriented CNF formulas.
 use std::io::{self, BufReader, Read, Write};
 
-use flussab::{text::LineReader, DeferredReader};
+use flussab::{text::LineReader, DeferredReader, DeferredWriter};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -241,26 +241,22 @@ where
 }
 
 /// Writes a GCNF header.
-pub fn write_header(writer: &mut impl Write, header: Header) -> io::Result<()> {
-    writeln!(
+pub fn write_header(writer: &mut DeferredWriter, header: Header) {
+    let _ = writeln!(
         writer,
         "p gcnf {} {} {}",
         header.var_count, header.clause_count, header.group_count
-    )
+    );
 }
 
 /// Writes a clause belonging to a group.
-pub fn write_clause<L: Dimacs>(
-    writer: &mut impl Write,
-    group: usize,
-    clause_lits: &[L],
-) -> io::Result<()> {
-    writer.write_all(b"{")?;
-    itoa::write(&mut *writer, group)?;
-    writer.write_all(b"} ")?;
+pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, group: usize, clause_lits: &[L]) {
+    writer.write_all_defer_err(b"{");
+    let _ = itoa::write(&mut *writer, group);
+    writer.write_all_defer_err(b"} ");
     for lit in clause_lits {
-        itoa::write(&mut *writer, lit.dimacs())?;
-        writer.write_all(b" ")?;
+        let _ = itoa::write(&mut *writer, lit.dimacs());
+        writer.write_all_defer_err(b" ");
     }
-    writer.write_all(b"0\n")
+    writer.write_all_defer_err(b"0\n");
 }

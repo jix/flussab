@@ -18,11 +18,11 @@ fn main_err() -> Result<(), ParseError> {
     let mut wcnf_writer = DeferredWriter::from_write(stdout.lock());
 
     if let Some(header) = wcnf_reader.header() {
-        wcnf::write_header(&mut wcnf_writer, header)?;
+        wcnf::write_header(&mut wcnf_writer, header);
     }
 
     while let Some((weight, lits)) = wcnf_reader.next_clause()? {
-        wcnf::write_clause(&mut wcnf_writer, weight, lits)?;
+        wcnf::write_clause(&mut wcnf_writer, weight, lits);
     }
 
     wcnf_writer.flush()?;
