@@ -14,7 +14,7 @@ fn main_err() -> Result<(), ParseError> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
 
-    let mut wcnf_reader = wcnf::Parser::<i32>::from_read(stdin.lock(), true)?;
+    let mut wcnf_reader = wcnf::Parser::<i32>::from_read(stdin.lock(), wcnf::Config::default())?;
     let mut wcnf_writer = DeferredWriter::from_write(stdout.lock());
 
     if let Some(header) = wcnf_reader.header() {

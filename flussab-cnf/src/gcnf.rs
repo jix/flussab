@@ -29,6 +29,24 @@ pub struct Header {
     pub group_count: usize,
 }
 
+/// Configuration for the GCNF parser.
+#[derive(Clone, Default, Debug)]
+#[non_exhaustive]
+pub struct Config {
+    /// When set, the variable, clause and group count of the GCNF header are ignored
+    /// during parsing. (Default: `false`)
+    pub ignore_header: bool,
+}
+
+impl Config {
+    #[inline]
+    /// Sets the [`ignore_header`][Self#structfield.ignore_header] field.
+    pub fn ignore_header(mut self, value: bool) -> Self {
+        self.ignore_header = value;
+        self
+    }
+}
+
 /// Parser for the GCNF file format.
 pub struct Parser<'a, L> {
     reader: LineReader<'a>,
@@ -48,16 +66,13 @@ where
     L: Dimacs,
 {
     /// Creates a parser reading from a [`BufReader`].
-    ///
-    /// When `strict` is false, the variable and clause count of the header are ignored during
-    /// parsing.
     pub fn from_buf_reader(
         buf_reader: BufReader<impl Read + 'a>,
-        strict: bool,
+        config: Config,
     ) -> Result<Self, ParseError> {
         Self::new(
             LineReader::new(DeferredReader::from_buf_reader(buf_reader)),
-            strict,
+            config,
         )
     }
 
@@ -66,11 +81,8 @@ where
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
-    ///
-    /// When `strict` is false, the variable and clause count of the header are ignored during
-    /// parsing.
-    pub fn from_read(read: impl Read + 'a, strict: bool) -> Result<Self, ParseError> {
-        Self::new(LineReader::new(DeferredReader::from_read(read)), strict)
+    pub fn from_read(read: impl Read + 'a, config: Config) -> Result<Self, ParseError> {
+        Self::new(LineReader::new(DeferredReader::from_read(read)), config)
     }
 
     /// Creates a parser reading from a boxed [`Read`] instance.
@@ -78,19 +90,19 @@ where
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
-    ///
-    /// When `strict` is false, the variable and clause count of the header are ignored during
-    /// parsing.
     #[inline(never)]
-    pub fn from_boxed_dyn_read(read: Box<dyn Read + 'a>, strict: bool) -> Result<Self, ParseError> {
+    pub fn from_boxed_dyn_read(
+        read: Box<dyn Read + 'a>,
+        config: Config,
+    ) -> Result<Self, ParseError> {
         Self::new(
             LineReader::new(DeferredReader::from_boxed_dyn_read(read)),
-            strict,
+            config,
         )
     }
 
     /// Creates a parser reading from a [`LineReader`].
-    pub fn new(reader: LineReader<'a>, strict: bool) -> Result<Self, ParseError> {
+    pub fn new(reader: LineReader<'a>, config: Config) -> Result<Self, ParseError> {
         let mut new = Self {
             reader,
             clause_count: 0,
@@ -105,7 +117,7 @@ where
         };
 
         if let Some(header) = new.parse_header()? {
-            if strict {
+            if !config.ignore_header {
                 if header.var_count != 0 {
                     new.lit_limit = header.var_count as isize;
                     new.lit_limit_is_hard = false;
@@ -286,7 +298,7 @@ p gcnf 5 12 3
 "[1..];
 
         let mut output = vec![];
-        let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(input.as_bytes(), Config::default())?;
 
         {
             let mut writer = DeferredWriter::from_write(&mut output);

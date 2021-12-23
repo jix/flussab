@@ -287,6 +287,10 @@ pub fn non_terminating_linebreaks(input: &mut LineReader) -> Result<bool, ParseE
     Ok(linebreak)
 }
 
+/// Parses a zero terminated list of literals.
+///
+/// Here `hard_limit` indicates a format and/or parser limit ("supported") as opposed to a limit
+/// specified in the input ("specified").
 #[inline]
 pub fn clause_lits<L: Dimacs>(
     input: &mut LineReader,

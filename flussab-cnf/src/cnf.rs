@@ -21,6 +21,24 @@ pub struct Header {
     pub clause_count: usize,
 }
 
+/// Configuration for the DIMACS CNF parser.
+#[derive(Clone, Default, Debug)]
+#[non_exhaustive]
+pub struct Config {
+    /// When set, the variable and clause count of the DIMACS CNF header are ignored
+    /// during parsing. (Default: `false`)
+    pub ignore_header: bool,
+}
+
+impl Config {
+    #[inline]
+    /// Sets the [`ignore_header`][Self#structfield.ignore_header] field.
+    pub fn ignore_header(mut self, value: bool) -> Self {
+        self.ignore_header = value;
+        self
+    }
+}
+
 /// Parser for the DIMACS CNF file format.
 pub struct Parser<'a, L> {
     reader: LineReader<'a>,
@@ -38,16 +56,13 @@ where
     L: Dimacs,
 {
     /// Creates a parser reading from a [`BufReader`].
-    ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
     pub fn from_buf_reader(
         buf_reader: BufReader<impl Read + 'a>,
-        strict: bool,
+        config: Config,
     ) -> Result<Self, ParseError> {
         Self::new(
             LineReader::new(DeferredReader::from_buf_reader(buf_reader)),
-            strict,
+            config,
         )
     }
 
@@ -56,11 +71,8 @@ where
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
-    ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
-    pub fn from_read(read: impl Read + 'a, strict: bool) -> Result<Self, ParseError> {
-        Self::new(LineReader::new(DeferredReader::from_read(read)), strict)
+    pub fn from_read(read: impl Read + 'a, config: Config) -> Result<Self, ParseError> {
+        Self::new(LineReader::new(DeferredReader::from_read(read)), config)
     }
 
     /// Creates a parser reading from a boxed [`Read`] instance.
@@ -68,19 +80,19 @@ where
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
-    ///
-    /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
-    /// during parsing.
     #[inline(never)]
-    pub fn from_boxed_dyn_read(read: Box<dyn Read + 'a>, strict: bool) -> Result<Self, ParseError> {
+    pub fn from_boxed_dyn_read(
+        read: Box<dyn Read + 'a>,
+        config: Config,
+    ) -> Result<Self, ParseError> {
         Self::new(
             LineReader::new(DeferredReader::from_boxed_dyn_read(read)),
-            strict,
+            config,
         )
     }
 
     /// Creates a parser reading from a [`LineReader`].
-    pub fn new(reader: LineReader<'a>, strict: bool) -> Result<Self, ParseError> {
+    pub fn new(reader: LineReader<'a>, config: Config) -> Result<Self, ParseError> {
         let mut new = Self {
             reader,
             clause_count: 0,
@@ -93,7 +105,7 @@ where
         };
 
         if let Some(header) = new.parse_header()? {
-            if strict {
+            if !config.ignore_header {
                 if header.var_count != 0 {
                     new.lit_limit = header.var_count as isize;
                     new.lit_limit_is_hard = false;
@@ -245,7 +257,7 @@ mod tests {
 
     #[test]
     fn empty() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read("".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, None);
         Ok(())
@@ -253,7 +265,8 @@ mod tests {
 
     #[test]
     fn headerless() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("1 2 -3 0\n4 5 0\n-6 0\n0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("1 2 -3 0\n4 5 0\n-6 0\n0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, Some(&[4, 5][..]));
@@ -265,7 +278,8 @@ mod tests {
 
     #[test]
     fn eof_clause() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("1 2 -3 0\n4 5 0\n-6 0".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("1 2 -3 0\n4 5 0\n-6 0".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, Some(&[4, 5][..]));
@@ -276,8 +290,10 @@ mod tests {
 
     #[test]
     fn empty_lines() -> Result<()> {
-        let mut parser =
-            Parser::<i32>::from_read("\n1 2 -3 0\n\n4 5 0\n\n-6 0\n\n".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(
+            "\n1 2 -3 0\n\n4 5 0\n\n-6 0\n\n".as_bytes(),
+            Config::default(),
+        )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, Some(&[4, 5][..]));
@@ -288,7 +304,8 @@ mod tests {
 
     #[test]
     fn split_clauses() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("1 2\n-3 0\n4 5\n0\n-6\n0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("1 2\n-3 0\n4 5\n0\n-6\n0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, Some(&[4, 5][..]));
@@ -301,7 +318,7 @@ mod tests {
     fn split_clauses_with_comments() -> Result<()> {
         let mut parser = Parser::<i32>::from_read(
             "1 2\nc 0\n-3 0\nc 0\n4 5\nc 0\n0\nc 0\n-6\nc 0\n0\n".as_bytes(),
-            true,
+            Config::default(),
         )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
@@ -313,18 +330,19 @@ mod tests {
 
     #[test]
     fn incomplete_header() {
-        let parser = Parser::<i32>::from_read("p cnf\n1 2 -3 0\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf\n1 2 -3 0\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
 
-        let parser = Parser::<i32>::from_read("p cnf 0\n1 2 -3 0\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf 0\n1 2 -3 0\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn empty_header() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 0 0\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 0 0\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -333,7 +351,8 @@ mod tests {
 
     #[test]
     fn empty_lines_before_header() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("\n\np cnf 0 0\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("\n\np cnf 0 0\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -342,7 +361,8 @@ mod tests {
 
     #[test]
     fn var_only_header() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 0\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 0\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -351,7 +371,8 @@ mod tests {
 
     #[test]
     fn full_header() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 1\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 1\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -360,7 +381,8 @@ mod tests {
 
     #[test]
     fn early_comment() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("c 9 0\np cnf 3 1\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("c 9 0\np cnf 3 1\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -369,7 +391,8 @@ mod tests {
 
     #[test]
     fn mid_comment() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 1\nc 9 0\n1 2 -3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 1\nc 9 0\n1 2 -3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -378,7 +401,8 @@ mod tests {
 
     #[test]
     fn late_comment() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 1\n1 2 -3 0\nc 9 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 1\n1 2 -3 0\nc 9 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -387,8 +411,10 @@ mod tests {
 
     #[test]
     fn crlf_newlines() -> Result<()> {
-        let mut parser =
-            Parser::<i32>::from_read("p cnf 3 1\r\n1 2 -3 0\r\nc 0\r\n".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(
+            "p cnf 3 1\r\n1 2 -3 0\r\nc 0\r\n".as_bytes(),
+            Config::default(),
+        )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -397,8 +423,10 @@ mod tests {
 
     #[test]
     fn extra_misc_whitespace() -> Result<()> {
-        let mut parser =
-            Parser::<i32>::from_read(" p\tcnf  3 1\t\n\t1\t 2\t-3\t0\r\n".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(
+            " p\tcnf  3 1\t\n\t1\t 2\t-3\t0\r\n".as_bytes(),
+            Config::default(),
+        )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
         assert_eq!(parser.next_clause()?, None);
@@ -409,7 +437,7 @@ mod tests {
     fn leading_zeros_and_negative_zero() -> Result<()> {
         let mut parser = Parser::<i32>::from_read(
             "p cnf 00000000000000000000004 002\n00001 02 -03 00\n 004 -00\n".as_bytes(),
-            true,
+            Config::default(),
         )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, 2, -3][..]));
@@ -421,7 +449,7 @@ mod tests {
     #[test]
     fn max_var_count() -> Result<()> {
         let input = format!("p cnf {} 0\n{0} -{0} 0\n", i32::MAX);
-        let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(input.as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[i32::MAX, -i32::MAX][..]));
         Ok(())
@@ -430,14 +458,14 @@ mod tests {
     #[test]
     fn err_exceeding_max_var_count() {
         let input = format!("p cnf {} 0\n", (i32::MAX as u32) + 1);
-        let parser = Parser::<i32>::from_read(input.as_bytes(), true);
+        let parser = Parser::<i32>::from_read(input.as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_negative_var_count() {
-        let parser = Parser::<i32>::from_read("p cnf -1 0".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf -1 0".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
@@ -445,27 +473,28 @@ mod tests {
     #[test]
     fn err_exceeding_max_clause_count() {
         let input = format!("p cnf 1 {}\n", (u64::MAX as u128) + 1);
-        let parser = Parser::<i32>::from_read(input.as_bytes(), true);
+        let parser = Parser::<i32>::from_read(input.as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_wrong_header() {
-        let parser = Parser::<i32>::from_read("p notcnf\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p notcnf\n".as_bytes(), Config::default());
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_wrong_header_line2() {
-        let parser = Parser::<i32>::from_read("\np\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("\np\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_missing_clauses() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_matches!(parser.next_clause(), Err(..));
@@ -474,8 +503,10 @@ mod tests {
 
     #[test]
     fn err_extra_clauses() -> Result<()> {
-        let mut parser =
-            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 0\n3 0\n".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(
+            "p cnf 3 2\n1 -2 3 0\n2 0\n3 0\n".as_bytes(),
+            Config::default(),
+        )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_eq!(parser.next_clause()?, Some(&[2][..]));
@@ -485,7 +516,8 @@ mod tests {
 
     #[test]
     fn err_pos_lit_out_of_range() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 4 0".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 4 0".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_matches!(parser.next_clause(), Err(..));
@@ -493,8 +525,21 @@ mod tests {
     }
 
     #[test]
+    fn pos_lit_out_of_range_ignored_header() -> Result<()> {
+        let mut parser = Parser::<i32>::from_read(
+            "p cnf 3 2\n1 -2 3 0\n2 4 0".as_bytes(),
+            Config::default().ignore_header(true),
+        )?;
+
+        assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
+        assert_eq!(parser.next_clause()?, Some(&[2, 4][..]));
+        Ok(())
+    }
+
+    #[test]
     fn err_neg_lit_out_of_range() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 -4 0".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 -4 0".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_matches!(parser.next_clause(), Err(..));
@@ -503,7 +548,8 @@ mod tests {
 
     #[test]
     fn err_unterminated_clause() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 -3".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 -3".as_bytes(), Config::default())?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_matches!(parser.next_clause(), Err(..));
@@ -512,8 +558,10 @@ mod tests {
 
     #[test]
     fn err_dangling_literal() -> Result<()> {
-        let mut parser =
-            Parser::<i32>::from_read("p cnf 3 2\n1 -2 3 0\n2 -3 0 1 0\n".as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(
+            "p cnf 3 2\n1 -2 3 0\n2 -3 0 1 0\n".as_bytes(),
+            Config::default(),
+        )?;
 
         assert_eq!(parser.next_clause()?, Some(&[1, -2, 3][..]));
         assert_matches!(parser.next_clause(), Err(..));
@@ -522,28 +570,29 @@ mod tests {
 
     #[test]
     fn err_unexpected_token_var_count() {
-        let parser = Parser::<i32>::from_read("p cnf error 2\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf error 2\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_unexpected_token_clause_count() {
-        let parser = Parser::<i32>::from_read("p cnf 2 error\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf 2 error\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_extra_header_field() {
-        let parser = Parser::<i32>::from_read("p cnf 2 1 2\n".as_bytes(), true);
+        let parser = Parser::<i32>::from_read("p cnf 2 1 2\n".as_bytes(), Config::default());
 
         assert_matches!(parser.err(), Some(..));
     }
 
     #[test]
     fn err_unexpected_token_clause() -> Result<()> {
-        let mut parser = Parser::<i32>::from_read("p cnf 2 1\n 1 2 err 0\n".as_bytes(), true)?;
+        let mut parser =
+            Parser::<i32>::from_read("p cnf 2 1\n 1 2 err 0\n".as_bytes(), Config::default())?;
 
         assert_matches!(parser.next_clause(), Err(..));
 
@@ -569,7 +618,7 @@ p cnf 5 12
 "[1..];
 
         let mut output = vec![];
-        let mut parser = Parser::<i32>::from_read(input.as_bytes(), true)?;
+        let mut parser = Parser::<i32>::from_read(input.as_bytes(), Config::default())?;
 
         {
             let mut writer = DeferredWriter::from_write(&mut output);
