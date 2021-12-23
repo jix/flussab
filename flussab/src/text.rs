@@ -1,4 +1,4 @@
-//! Utilities for parsing text based formats using a [`ByteReader`].
+//! Utilities for parsing text based formats using a [`DeferredReader`].
 use std::{fmt, io};
 
 use num_traits::{
@@ -6,14 +6,14 @@ use num_traits::{
     FromPrimitive, Zero,
 };
 
-use crate::ByteReader;
+use crate::DeferredReader;
 
 /// Passes over ASCII digits and parses them as decimal number.
 ///
 /// Increments `offset` as long as it points to an ASCII digit. It returns the value of the digits
 /// parsed as decimal number (or `None` on overflow) and the resulting `offset`.
 #[inline]
-pub fn ascii_digits<I>(reader: &mut ByteReader, mut offset: usize) -> (Option<I>, usize)
+pub fn ascii_digits<I>(reader: &mut DeferredReader, mut offset: usize) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingMul,
 {
@@ -39,7 +39,7 @@ where
 #[inline(never)]
 /// Used as positive cold path for SWAR variants
 fn ascii_digits_cont_pos<I>(
-    reader: &mut ByteReader,
+    reader: &mut DeferredReader,
     mut offset: usize,
     value: Option<I>,
 ) -> (Option<I>, usize)
@@ -69,7 +69,7 @@ where
 #[inline(never)]
 /// Used as negative cold path for SWAR variants
 fn ascii_digits_cont_neg<I>(
-    reader: &mut ByteReader,
+    reader: &mut DeferredReader,
     mut offset: usize,
     value: Option<I>,
 ) -> (Option<I>, usize)
@@ -105,7 +105,7 @@ where
 ///
 /// This also does not handle an explicit positive sign `'+'`.
 #[inline]
-pub fn signed_ascii_digits<I>(reader: &mut ByteReader, mut offset: usize) -> (Option<I>, usize)
+pub fn signed_ascii_digits<I>(reader: &mut DeferredReader, mut offset: usize) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingSub + OverflowingMul,
 {
@@ -151,7 +151,7 @@ where
 /// size distribution of the parsed numbers this can be faster or slower than `ascii_digits`, so
 /// both variants are provided.
 #[inline]
-pub fn ascii_digits_multi<I>(reader: &mut ByteReader, offset: usize) -> (Option<I>, usize)
+pub fn ascii_digits_multi<I>(reader: &mut DeferredReader, offset: usize) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingMul,
 {
@@ -174,7 +174,7 @@ where
 
 #[cold]
 #[inline(never)]
-fn ascii_digits_multi_cold<I>(reader: &mut ByteReader, offset: usize) -> (Option<I>, usize)
+fn ascii_digits_multi_cold<I>(reader: &mut DeferredReader, offset: usize) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingMul,
 {
@@ -187,7 +187,10 @@ where
 /// on the size distribution of the parsed numbers this can be faster or slower than
 /// `signed_ascii_digits`, so both variants are provided.
 #[inline]
-pub fn signed_ascii_digits_multi<I>(reader: &mut ByteReader, offset: usize) -> (Option<I>, usize)
+pub fn signed_ascii_digits_multi<I>(
+    reader: &mut DeferredReader,
+    offset: usize,
+) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingSub + OverflowingMul,
 {
@@ -227,7 +230,10 @@ where
 
 #[cold]
 #[inline(never)]
-fn signed_ascii_digits_multi_cold<I>(reader: &mut ByteReader, offset: usize) -> (Option<I>, usize)
+fn signed_ascii_digits_multi_cold<I>(
+    reader: &mut DeferredReader,
+    offset: usize,
+) -> (Option<I>, usize)
 where
     I: Zero + FromPrimitive + OverflowingAdd + OverflowingSub + OverflowingMul,
 {
@@ -271,7 +277,7 @@ fn swar_ascii_digits_u64_le(word: u64) -> (u32, usize) {
 /// Increments `offset` as long as it points to either a tab (`'\t'`) or a space (`' '`) character
 /// and returns the resulting value.
 #[inline]
-pub fn tabs_or_spaces(input: &mut ByteReader, mut offset: usize) -> usize {
+pub fn tabs_or_spaces(input: &mut DeferredReader, mut offset: usize) -> usize {
     while let Some(b' ') | Some(b'\t') = input.request_byte_at_offset(offset) {
         offset += 1;
     }
@@ -283,7 +289,7 @@ pub fn tabs_or_spaces(input: &mut ByteReader, mut offset: usize) -> usize {
 /// This increments `offset` by 1 if it points to `"\n"` and by 2 if it points to `"\r\n"`, leaving
 /// it unchanged otherwise. It returns the resulting value.
 #[inline]
-pub fn newline(input: &mut ByteReader, offset: usize) -> usize {
+pub fn newline(input: &mut DeferredReader, offset: usize) -> usize {
     match input.request_byte_at_offset(offset) {
         Some(b'\n') => offset + 1,
         Some(b'\r') if matches!(input.request_byte_at_offset(offset + 1), Some(b'\n')) => {
@@ -298,7 +304,7 @@ pub fn newline(input: &mut ByteReader, offset: usize) -> usize {
 /// This increments `offset` until it finds a [`newline`], over which it also passes, or reaches the
 /// end of the input. It returns the resulting value.
 #[inline]
-pub fn next_newline(input: &mut ByteReader, mut offset: usize) -> usize {
+pub fn next_newline(input: &mut DeferredReader, mut offset: usize) -> usize {
     // TODO this can be made faster, but wasn't important for the formats I implemented so far
     while !matches!(input.request_byte_at_offset(offset), Some(b'\n') | None) {
         offset += 1;
@@ -314,7 +320,7 @@ pub fn next_newline(input: &mut ByteReader, mut offset: usize) -> usize {
 /// This does not read more data than the length of `fixed` or up to the first byte that does not
 /// match `fixed`, whichever comes first.
 #[inline]
-pub fn fixed(input: &mut ByteReader, offset: usize, fixed: &[u8]) -> usize {
+pub fn fixed(input: &mut DeferredReader, offset: usize, fixed: &[u8]) -> usize {
     // TODO can also be made faster, especially if `fixed` has a size known at compile time
     for (i, &byte) in fixed.iter().enumerate() {
         if input.request_byte_at_offset(offset + i) != Some(byte) {
@@ -365,27 +371,27 @@ impl fmt::Display for SyntaxError {
 
 impl std::error::Error for SyntaxError {}
 
-/// Wraps a [`ByteReader`] to count track lines.
+/// Wraps a [`DeferredReader`] to count track lines.
 ///
 /// For performance reasons, counting lines isn't done automatically. Instead, you are expected to
-/// read directly from the underlying [`ByteReader`] and to call
+/// read directly from the underlying [`DeferredReader`] and to call
 /// [`line_at_offset`](Self::line_at_offset) whenever you advance past the end of a line.
 ///
 /// If this is done, [`give_up`](Self::give_up) can be used to generate `SyntaxError`'s that contain
 /// the source location and display the line containing the syntax error.
 pub struct LineReader<'a> {
-    /// The wrapped `ByteReader`.
-    pub reader: ByteReader<'a>,
+    /// The wrapped `DeferredReader`.
+    pub reader: DeferredReader<'a>,
     /// The current line, starting at `1`.
     pub line: usize,
-    /// The position where the current line starts, as returned by [`ByteReader::position`].
+    /// The position where the current line starts, as returned by [`DeferredReader::position`].
     pub line_start: usize,
 }
 
 impl<'a> LineReader<'a> {
     /// Creates a `LineReader` assuming line 1 starts at the current position of the passed
-    /// [`ByteReader`].
-    pub fn new(reader: ByteReader<'a>) -> Self {
+    /// [`DeferredReader`].
+    pub fn new(reader: DeferredReader<'a>) -> Self {
         Self {
             line: 1,
             line_start: reader.position(),
@@ -393,18 +399,18 @@ impl<'a> LineReader<'a> {
         }
     }
 
-    /// Returns a mutable reference to the [`ByteReader`].
+    /// Returns a mutable reference to the [`DeferredReader`].
     ///
     /// While the `reader` field is directly accessible, using this method can be more convenient if
     /// a mutable reference is needed.
     #[inline]
-    pub fn reader(&mut self) -> &mut ByteReader<'a> {
+    pub fn reader(&mut self) -> &mut DeferredReader<'a> {
         &mut self.reader
     }
 
     /// Advance the line counter and record the start of a new line.
     ///
-    /// The `offset` value is relative to the current [`position()`][ByteReader::position] as
+    /// The `offset` value is relative to the current [`position()`][DeferredReader::position] as
     /// returned by `self.reader`.
     #[inline]
     pub fn line_at_offset(&mut self, offset: usize) {

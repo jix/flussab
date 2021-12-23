@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use flussab::ByteWriter;
+use flussab::DeferredWriter;
 
 use flussab_cnf::{wcnf, ParseError};
 
@@ -15,7 +15,7 @@ fn main_err() -> Result<(), ParseError> {
     let stdout = std::io::stdout();
 
     let mut wcnf_reader = wcnf::Parser::<i32>::from_read(stdin.lock(), true)?;
-    let mut wcnf_writer = ByteWriter::from_write(stdout.lock());
+    let mut wcnf_writer = DeferredWriter::from_write(stdout.lock());
 
     if let Some(header) = wcnf_reader.header() {
         wcnf::write_header(&mut wcnf_writer, header)?;

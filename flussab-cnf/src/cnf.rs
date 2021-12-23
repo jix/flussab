@@ -1,7 +1,7 @@
 //! Parsing and writing of the DIMACS CNF file format.
 use std::io::{self, BufReader, Read, Write};
 
-use flussab::{text::LineReader, ByteReader};
+use flussab::{text::LineReader, DeferredReader};
 
 use crate::{error::ParseError, token, Dimacs};
 
@@ -46,7 +46,7 @@ where
         strict: bool,
     ) -> Result<Self, ParseError> {
         Self::new(
-            LineReader::new(ByteReader::from_buf_reader(buf_reader)),
+            LineReader::new(DeferredReader::from_buf_reader(buf_reader)),
             strict,
         )
     }
@@ -60,7 +60,7 @@ where
     /// When `strict` is false, the variable and clause count of the DIMACS CNF header are ignored
     /// during parsing.
     pub fn from_read(read: impl Read + 'a, strict: bool) -> Result<Self, ParseError> {
-        Self::new(LineReader::new(ByteReader::from_read(read)), strict)
+        Self::new(LineReader::new(DeferredReader::from_read(read)), strict)
     }
 
     /// Creates a parser reading from a boxed [`Read`] instance.
@@ -74,7 +74,7 @@ where
     #[inline(never)]
     pub fn from_boxed_dyn_read(read: Box<dyn Read + 'a>, strict: bool) -> Result<Self, ParseError> {
         Self::new(
-            LineReader::new(ByteReader::from_boxed_dyn_read(read)),
+            LineReader::new(DeferredReader::from_boxed_dyn_read(read)),
             strict,
         )
     }

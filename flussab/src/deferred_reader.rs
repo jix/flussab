@@ -3,10 +3,10 @@ use std::io::{self, BufReader, Cursor, Read};
 /// A buffered reader optimized for efficient parsing.
 ///
 /// Like `std`'s [`BufReader`], this provides buffering to coalesce many small reads into fewer
-/// larger reads of the underlying data source. The difference is that `ByteReader` is optimized for
-/// efficient parsing. This includes asynchronous handling of IO errors, position tracking, and
+/// larger reads of the underlying data source. The difference is that `DeferredReader` is optimized
+/// for efficient parsing. This includes asynchronous handling of IO errors, position tracking, and
 /// dynamic contiguous look-ahead.
-pub struct ByteReader<'a> {
+pub struct DeferredReader<'a> {
     read: Box<dyn Read + 'a>,
     buf: Vec<u8>,
     // SAFETY `buf[pos_in_buf..pos_in_buf+valid_len]` must _always_ be valid
@@ -19,10 +19,10 @@ pub struct ByteReader<'a> {
     chunk_size: usize,
 }
 
-impl<'a> ByteReader<'a> {
+impl<'a> DeferredReader<'a> {
     const DEFAULT_CHUNK_SIZE: usize = 16 << 10;
 
-    /// Creates a [`ByteReader`] for the data of a [`BufReader`].
+    /// Creates a [`DeferredReader`] for the data of a [`BufReader`].
     pub fn from_buf_reader(buf_reader: BufReader<impl Read + 'a>) -> Self {
         // Avoid double buffering without discarding any already buffered contents.
         let buf_data = buf_reader.buffer().to_vec();
@@ -33,7 +33,7 @@ impl<'a> ByteReader<'a> {
         }
     }
 
-    /// Creates a [`ByteReader`] for the data of a [`Read`] instance.
+    /// Creates a [`DeferredReader`] for the data of a [`Read`] instance.
     ///
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
@@ -42,14 +42,14 @@ impl<'a> ByteReader<'a> {
         Self::from_boxed_dyn_read(Box::new(read))
     }
 
-    /// Creates a [`ByteReader`] for the data of a boxed [`Read`] instance.
+    /// Creates a [`DeferredReader`] for the data of a boxed [`Read`] instance.
     ///
     /// If the [`Read`] instance is a [`BufReader`], it is better to use
     /// [`from_buf_reader`][Self::from_buf_reader] to avoid unnecessary double buffering of the
     /// data.
     #[inline(never)]
     pub fn from_boxed_dyn_read(read: Box<dyn Read + 'a>) -> Self {
-        ByteReader {
+        DeferredReader {
             read,
             buf: vec![],
             pos_in_buf: 0,
@@ -66,7 +66,7 @@ impl<'a> ByteReader<'a> {
     ///
     /// This sets the size of the [`read`][Read::read] requests made. Note that this is just an
     /// upper bound. Depending on the [`Read`] implementation, smaller amounts may be read at once.
-    /// To enable interactive line based input, `ByteReader` on its own will not issue more read
+    /// To enable interactive line based input, `DeferredReader` on its own will not issue more read
     /// requests than necessary.
     pub fn set_chunk_size(&mut self, size: usize) {
         self.chunk_size = size;

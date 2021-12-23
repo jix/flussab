@@ -13,7 +13,7 @@
 //!   hand-rolled parsers (e.g. using data parallelism to scan multiple input bytes at once).
 //!
 //!   The efficiency is realized by a) using an input stream with a mutable cursor instead of
-//!   threading the current position through return values and b) (when using [`ByteReader`])
+//!   threading the current position through return values and b) (when using [`DeferredReader`])
 //!   deferring IO error checks. This together greatly simplifies the control and data flow of the
 //!   parsers, which makes it easier for the compiler to optimize the code and often results in
 //!   overall faster code.
@@ -42,8 +42,8 @@
 //!   back tracking. Avoiding backtracking completely also avoids many ways to accidentally making a
 //!   recursive-descent parser become very slow for some inputs. This does mean that some form of
 //!   look-ahead is required to parse most formats. This can be realized either by using the
-//!   provided [`ByteReader`] which has dynamic lookahead, and/or by using a tokenizer for formats
-//!   where no look-ahead is required after tokenization.
+//!   provided [`DeferredReader`] which has dynamic lookahead, and/or by using a tokenizer for
+//!   formats where no look-ahead is required after tokenization.
 //!
 //!   (Note that Flussab doesn't stop you from handling backtracking yourself, it just does not
 //!   provide any help for that.)
@@ -55,8 +55,8 @@
 //!
 //!   The provided infrastructure for combining parsers is entirely agnostic of how the input stream
 //!   is handled, as long as it itself keeps track of the input position. This crate provides
-//!   [`ByteReader`] as one choice, but a [`Peekable`][std::iter::Peekable] iterator of tokens would
-//!   work as well.
+//!   [`DeferredReader`] as one choice, but a [`Peekable`][std::iter::Peekable] iterator of tokens
+//!   would work as well.
 //!
 //! ## Using Flussab
 //!
@@ -66,7 +66,7 @@
 //! # use flussab::*;
 //! # type Something = ();
 //! # type ParseError = ();
-//! fn something(input: &mut ByteReader) -> Parsed<Something, ParseError> {
+//! fn something(input: &mut DeferredReader) -> Parsed<Something, ParseError> {
 //! #   let input_as_expected = false;
 //!     // Check whether `input` contains a _something_ at the current position
 //!     if !input_as_expected {
@@ -84,22 +84,22 @@
 //! }
 //! ```
 //!
-//! Here [`Parsed`] and [`ByteReader`] are provided by this crate and are good entry points for the
-//! documentation. A `Parsed` value is just a wrapper for a [`Result`] which adds [`Fallthrough`] as
-//! a third option besides `Ok` and `Err` that indicates that the input does not match and that the
-//! parser did not consume any input.
+//! Here [`Parsed`] and [`DeferredReader`] are provided by this crate and are good entry points for
+//! the documentation. A `Parsed` value is just a wrapper for a [`Result`] which adds
+//! [`Fallthrough`] as a third option besides `Ok` and `Err` that indicates that the input does not
+//! match and that the parser did not consume any input.
 //!
 //! Instead of manually returning `Fallthrough` or `Res(Err(..))`, often the provided methods of
 //! [`Parsed`] and [`Result`] are used to combine smaller parsers into larger ones.
 
 #![warn(missing_docs)]
-mod byte_reader;
-mod byte_writer;
+mod deferred_reader;
+mod deferred_writer;
 mod parser;
 pub mod text;
 
-pub use byte_reader::ByteReader;
-pub use byte_writer::ByteWriter;
+pub use deferred_reader::DeferredReader;
+pub use deferred_writer::DeferredWriter;
 pub use parser::{Parsed, Result, ResultExt};
 
 pub use Parsed::*;

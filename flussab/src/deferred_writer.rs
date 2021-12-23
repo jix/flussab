@@ -2,32 +2,32 @@ use std::io::{self, Write};
 
 /// A buffered writer with deferred error checking.
 ///
-/// This can be used like [`std::io::BufWriter`], but like [`ByteReader`][crate::ByteReader] this
-/// performs deferred error checking. This means that any call to [`write`][Write::write], will
+/// This can be used like [`std::io::BufWriter`], but like [`DeferredReader`][crate::DeferredReader]
+/// this performs deferred error checking. This means that any call to [`write`][Write::write], will
 /// always succeed. IO errors that occur during writing will be reported during the next call to
 /// [`flush`][Write::flush] or [`check_io_error`][Self::check_io_error]. Any data written after an
 /// IO error occured, before it is eventually reported, will be discarded.
 ///
 /// Deferring error checks like this can result in a significant speed up for some usage patterns.
-pub struct ByteWriter<'a> {
+pub struct DeferredWriter<'a> {
     write: Box<dyn Write + 'a>,
     buf: Vec<u8>,
     io_error: Option<io::Error>,
     panicked: bool,
 }
 
-impl<'a> ByteWriter<'a> {
+impl<'a> DeferredWriter<'a> {
     const DEFAULT_CHUNK_SIZE: usize = 16 << 10;
 
-    /// Creates a [`ByteWriter`] writing data to a [`Write`] instance.
+    /// Creates a [`DeferredWriter`] writing data to a [`Write`] instance.
     pub fn from_write(write: impl Write + 'a) -> Self {
         Self::from_boxed_dyn_write(Box::new(write))
     }
 
-    /// Creates a [`ByteWriter`] writing data to a boxed [`Write`] instance.
+    /// Creates a [`DeferredWriter`] writing data to a boxed [`Write`] instance.
     #[inline(never)]
     pub fn from_boxed_dyn_write(write: Box<dyn Write + 'a>) -> Self {
-        ByteWriter {
+        DeferredWriter {
             write,
             buf: Vec::with_capacity(Self::DEFAULT_CHUNK_SIZE),
             io_error: None,
@@ -119,7 +119,7 @@ impl<'a> ByteWriter<'a> {
     }
 }
 
-impl<'a> Write for ByteWriter<'a> {
+impl<'a> Write for DeferredWriter<'a> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.write_all_defer_err(buf);
@@ -139,7 +139,7 @@ impl<'a> Write for ByteWriter<'a> {
     }
 }
 
-impl<'a> Drop for ByteWriter<'a> {
+impl<'a> Drop for DeferredWriter<'a> {
     fn drop(&mut self) {
         if !self.panicked {
             self.flush_defer_err();
