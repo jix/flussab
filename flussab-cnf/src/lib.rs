@@ -12,5 +12,7 @@ pub mod cnf;
 pub mod gcnf;
 pub mod wcnf;
 
+pub mod sat_solver_log;
+
 pub use dimacs_trait::Dimacs;
 pub use error::{InnerParseError, ParseError};

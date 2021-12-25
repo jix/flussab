@@ -34,6 +34,18 @@ pub fn word(input: &mut LineReader, fixed: &[u8]) -> Parsed<(), ParseError> {
     }
 }
 
+/// Parses a fixed sequence of bytes without consuming any following spaces.
+#[inline]
+pub fn fixed(input: &mut LineReader, fixed: &[u8]) -> Parsed<(), ParseError> {
+    let offset = text::fixed(input.reader(), 0, fixed);
+    if offset != 0 {
+        input.reader.advance(offset);
+        Res(Ok(()))
+    } else {
+        Fallthrough
+    }
+}
+
 /// Parses a non-negative integer.
 #[inline]
 pub fn uint<T>(input: &mut LineReader) -> Parsed<T, String>
@@ -119,6 +131,30 @@ pub fn comment(input: &mut LineReader) -> Parsed<(), ParseError> {
 }
 
 #[inline]
+pub fn interactive_strict_comment(input: &mut LineReader) -> Parsed<(), ParseError> {
+    if text::fixed(input.reader(), 0, b"c ") != 0 {
+        let offset = text::next_newline(input.reader(), 2);
+        input.line_at_offset(offset);
+        input.reader.advance(offset);
+        Res(Ok(()))
+    } else {
+        Fallthrough
+    }
+}
+
+#[inline]
+pub fn interactive_skip_line(input: &mut LineReader) -> Parsed<(), ParseError> {
+    let offset = text::next_newline(input.reader(), 0);
+    if offset != 0 {
+        input.line_at_offset(offset);
+        input.reader.advance(offset);
+        Res(Ok(()))
+    } else {
+        Fallthrough
+    }
+}
+
+#[inline]
 pub fn newline(input: &mut LineReader) -> Parsed<(), ParseError> {
     let offset = text::newline(input.reader(), 0);
     if offset != 0 {
@@ -177,7 +213,12 @@ pub fn unexpected(input: &mut LineReader, expected: &str) -> ParseError {
 
     while unexpected_bytes.len() < 60 {
         match input.reader.request_byte_at_offset(unexpected_bytes.len()) {
-            Some(b'\n') | Some(b'\r') | Some(b'\t') | Some(b' ') | None => break,
+            Some(b'\n') | Some(b'\r') | Some(b'\t') | Some(b' ')
+                if !unexpected_bytes.is_empty() =>
+            {
+                break
+            }
+            None => break,
             Some(byte) => unexpected_bytes.push(byte),
         }
     }
