@@ -388,6 +388,12 @@ pub struct LineReader<'a> {
     pub line_start: usize,
 }
 
+impl<'a> From<DeferredReader<'a>> for LineReader<'a> {
+    fn from(reader: DeferredReader<'a>) -> Self {
+        Self::new(reader)
+    }
+}
+
 impl<'a> LineReader<'a> {
     /// Creates a `LineReader` assuming line 1 starts at the current position of the passed
     /// [`DeferredReader`].
