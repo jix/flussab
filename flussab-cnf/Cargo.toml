@@ -14,3 +14,6 @@ categories = ["parser-implementations", "encoding"]
 flussab = { version = "0.1.0", path = "../flussab" }
 thiserror = "1.0.24"
 num-traits = "0.2.14"
+
+[dev-dependencies]
+assert_matches = "1.5.0"

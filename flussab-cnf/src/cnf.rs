@@ -239,21 +239,11 @@ pub fn write_clause<L: Dimacs>(writer: &mut DeferredWriter, clause_lits: &[L]) {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
 
     type Result<T> = std::result::Result<T, ParseError>;
-
-    macro_rules! assert_matches {
-        ($value:expr, $matches:pat) => {
-            let value = $value;
-            assert!(
-                matches!(&value, &$matches),
-                "{:?} does not match {}",
-                value,
-                stringify!($matches)
-            );
-        };
-    }
 
     #[test]
     fn empty() -> Result<()> {
