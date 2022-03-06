@@ -1,6 +1,6 @@
 [package]
 name = "flussab"
-version = "0.1.0"
+version = "0.3.0"
 authors = ["Jannis Harder <me@jix.one>"]
 edition = "2021"
 description = "Utilities for writing parsers"

@@ -1,6 +1,6 @@
 [package]
 name = "flussab-cnf"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Jannis Harder <me@jix.one>"]
 edition = "2021"
 description = "DIMACS CNF file format parser and writer"
@@ -11,8 +11,8 @@ keywords = ["cnf", "dimacs-cnf", "parser", "writer"]
 categories = ["parser-implementations", "encoding"]
 
 [dependencies]
-flussab = { version = "0.1.0", path = "../flussab" }
-thiserror = "1.0.24"
+flussab = { version = "0.3.0", path = "../flussab" }
+thiserror = "1.0.30"
 num-traits = "0.2.14"
 
 [dev-dependencies]
