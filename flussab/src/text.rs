@@ -32,7 +32,7 @@ where
         value = new_value;
     }
 
-    ((!overflow).then(|| value), offset)
+    ((!overflow).then_some(value), offset)
 }
 
 #[cold]
@@ -62,7 +62,7 @@ where
         value = new_value;
     }
 
-    ((!overflow).then(|| value), offset)
+    ((!overflow).then_some(value), offset)
 }
 
 #[cold]
@@ -92,7 +92,7 @@ where
         value = new_value;
     }
 
-    ((!overflow).then(|| value), offset)
+    ((!overflow).then_some(value), offset)
 }
 
 /// Passes over ASCII digits, optionally prefixed by `'-`', and parses them as decimal number.
@@ -142,7 +142,7 @@ where
         }
     }
 
-    ((!overflow).then(|| value), offset)
+    ((!overflow).then_some(value), offset)
 }
 
 /// Optimized version of `ascii_digits`.
