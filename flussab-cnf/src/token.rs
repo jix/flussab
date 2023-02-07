@@ -206,9 +206,9 @@ pub fn unexpected(input: &mut LineReader, expected: &str) -> ParseError {
     let mut unexpected_bytes = vec![];
 
     if text::newline(input.reader(), 0) != 0 {
-        return input.give_up(format!("expected {}, found end of line", expected));
+        return input.give_up(format!("expected {expected}, found end of line"));
     } else if input.reader.is_at_end() {
-        return input.give_up(format!("expected {}, found end of file", expected));
+        return input.give_up(format!("expected {expected}, found end of file"));
     }
 
     while unexpected_bytes.len() < 60 {

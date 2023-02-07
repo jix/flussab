@@ -6,7 +6,7 @@ use flussab_cnf::{gcnf, ParseError};
 
 fn main() {
     if let Err(err) = main_err() {
-        eprintln!("error: {}", err);
+        eprintln!("error: {err}");
     }
 }
 

@@ -4,7 +4,7 @@ use flussab_cnf::{sat_solver_log, ParseError};
 
 fn main() {
     if let Err(err) = main_err() {
-        eprintln!("error: {}", err);
+        eprintln!("error: {err}");
     }
 }
 
@@ -18,6 +18,6 @@ fn main_err() -> Result<(), ParseError> {
         sat_solver_log::Config::default().ignore_unknown_lines(ignore_unknown_lines),
     )?;
 
-    println!("{:?}", log);
+    println!("{log:?}");
     Ok(())
 }
