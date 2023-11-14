@@ -201,7 +201,7 @@ pub fn skip_whitespace(input: &mut LineReader) {
     input.reader.advance(skip);
 }
 
-#[inline]
+#[cold]
 pub fn unexpected(input: &mut LineReader, expected: &str) -> ParseError {
     let mut unexpected_bytes = vec![];
 

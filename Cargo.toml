@@ -1,5 +1,5 @@
 [workspace]
-members = ["flussab", "flussab-cnf"]
+members = ["flussab", "flussab-cnf", "flussab-aiger"]
 
 [profile.release]
 debug = true # Enables profiling with perf

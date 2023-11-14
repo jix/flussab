@@ -131,8 +131,24 @@ impl<'a> DeferredReader<'a> {
 
     #[inline(never)]
     #[cold]
-    fn advance_cold(&mut self) -> ! {
+    fn advance_cold(&self) -> ! {
         panic!("advanced past the current buffer size");
+    }
+
+    /// Advances the cursor by a given number of already buffered bytes, returning a reference to
+    /// those bytes.
+    ///
+    /// This will panic if the number of bytes exceeds the amount of buffered data.
+    #[inline]
+    pub fn advance_with_buf(&mut self, n: usize) -> &[u8] {
+        self.advance(n);
+        unsafe {
+            // SAFETY since we just called advance which did not panic, we know that
+            // `self.pos_in_buf` was just advanced by `n` bytes, pointing into a valid buffer before
+            // and after.
+            debug_assert!(self.buf.get(self.pos_in_buf - n..self.pos_in_buf).is_some());
+            self.buf.get_unchecked(self.pos_in_buf - n..self.pos_in_buf)
+        }
     }
 
     /// Advances the cursor by a given number of already buffered bytes without checking if
