@@ -1,17 +1,19 @@
 [package]
 name = "flussab-aiger"
 version = "0.1.0"
+authors = ["Jannis Harder <me@jix.one>"]
 edition = "2021"
+description = "AIGER file format (binary and ASCII) parser and writer"
+repository = "https://github.com/jix/flussab"
+license = "0BSD"
+readme = "README.md"
+keywords = ["aig", "aiger", "and-inverter-graph", "parser", "writer"]
+categories = ["parser-implementations", "encoding"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 flussab = { version = "0.3.0", path = "../flussab" }
-thiserror = "1.0.30"
-num-traits = "0.2.14"
+thiserror = "1.0.50"
+num-traits = "0.2.17"
 zwohash = "0.1.2"
-
-[dev-dependencies]
-flussab-cnf = { version = "0.3.0", path = "../flussab-cnf" }
-tempfile = "3.3.0"
-duct = "0.13.6"

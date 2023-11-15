@@ -8,6 +8,7 @@ The Flussab repository contains the file format parsing related crates listed be
 
 * [`flussab`](flussab) generic parsing utilities.
 * [`flussab-cnf`](flussab-cnf) for the DIMACS CNF file format and variants.
+* [`flussab-aiger`](flussab-aiger) (*preview release*) for the AIGER file format (binary and ASCII).
 
 ## License
 

@@ -389,10 +389,11 @@ pub fn remaining_line_content<'a>(input: &'a mut LineReader) -> Result<&'a str, 
 
 #[inline]
 pub fn remaining_file_content<'a>(input: &'a mut LineReader) -> Result<&'a str, ParseError> {
-    while !matches!(
-        input.reader.request_byte_at_offset(input.reader.buf_len()),
-        None
-    ) {}
+    while input
+        .reader
+        .request_byte_at_offset(input.reader.buf_len())
+        .is_some()
+    {}
 
     let bytes = input.reader.buf();
 
