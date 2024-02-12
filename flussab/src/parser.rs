@@ -12,6 +12,7 @@
 /// [`ResultExt`] trait. Finally some of the methods are only intended for parser that can fall
 /// through, and as such, they are not implemented for `Result`.
 #[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Parsed<T, E> {
     /// A successfully parsed value or an irrecoverable error.
     ///
