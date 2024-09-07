@@ -864,6 +864,7 @@ where
             Some(true) => self.writer.write_all_defer_err(b" 1\n"),
             Some(false) => self.writer.write_all_defer_err(b"\n"),
             None => {
+                self.writer.write_all_defer_err(b" ");
                 flussab::write::text::ascii_digits(&mut self.writer, self.code);
                 self.writer.write_all_defer_err(b"\n");
             }
