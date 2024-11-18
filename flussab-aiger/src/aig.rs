@@ -35,7 +35,7 @@ pub struct Symbol<'a> {
     pub name: Cow<'a, str>,
 }
 
-impl<'a> Symbol<'a> {
+impl Symbol<'_> {
     pub fn into_owned_name(self) -> Symbol<'static> {
         Symbol {
             target: self.target,

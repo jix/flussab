@@ -157,7 +157,7 @@ impl<'a> DeferredWriter<'a> {
     }
 }
 
-impl<'a> Write for DeferredWriter<'a> {
+impl Write for DeferredWriter<'_> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.write_all_defer_err(buf);
@@ -177,7 +177,7 @@ impl<'a> Write for DeferredWriter<'a> {
     }
 }
 
-impl<'a> Drop for DeferredWriter<'a> {
+impl Drop for DeferredWriter<'_> {
     fn drop(&mut self) {
         if !self.panicked {
             self.flush_defer_err();

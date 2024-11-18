@@ -671,7 +671,7 @@ pub struct ParseSymbols<'a, L> {
     parser: Parser<'a, L>,
 }
 
-impl<'a, L> ParseSymbols<'a, L>
+impl<L> ParseSymbols<'_, L>
 where
     L: Lit,
 {
@@ -813,7 +813,7 @@ impl<'a, L> std::ops::Deref for Writer<'a, L> {
     }
 }
 
-impl<'a, L> std::ops::DerefMut for Writer<'a, L> {
+impl<L> std::ops::DerefMut for Writer<'_, L> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
