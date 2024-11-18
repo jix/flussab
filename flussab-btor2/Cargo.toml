@@ -1,0 +1,15 @@
+[package]
+name = "flussab-btor2"
+version = "0.1.0"
+edition = "2021"
+description = "BTOR2 file format parser and writer"
+repository = "https://github.com/jix/flussab"
+license = "0BSD"
+readme = "README.md"
+keywords = ["btor", "btor2", "parser", "writer"]
+categories = ["parser-implementations", "encoding"]
+
+[dependencies]
+flussab = { version = "0.3.1", path = "../flussab" }
+thiserror = "1.0.50"
+bstr = "1.10.0"

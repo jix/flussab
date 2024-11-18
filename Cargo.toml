@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["flussab", "flussab-cnf", "flussab-aiger"]
+members = ["flussab", "flussab-cnf", "flussab-aiger", "flussab-btor2"]
 
 [profile.release]
 debug = true # Enables profiling with perf
