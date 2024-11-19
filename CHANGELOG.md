@@ -1,5 +1,9 @@
 # Changelog
 
+## Recent changes
+
+* `flussab-aiger` 0.1.1 fixes a bug when writing latch initialization
+* New flussab-btor2 crate for BTOR2 files
 
 ## flussab 0.3.1 (2023-11-05)
 
